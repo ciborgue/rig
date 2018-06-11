@@ -1,0 +1,24 @@
+module(load="omelasticsearch")
+module(load="mmjsonparse")
+
+# this one is modified from the default to include programname
+$template JSONDefault, "{\"message\":\"%msg:::json%\",\"fromhost\":\"%HOSTNAME:::json%\",\"programname\":\"%programname:::json%\",\"facility\":\"%syslogfacility-text%\",\"priority\":\"%syslogpriority-text%\",\"timereported\":\"%timereported:::date-rfc3339%\",\"timegenerated\":\"%timegenerated:::date-rfc3339%\"}\n"
+
+template(name="syslog-cee" type="list") {
+  property(name="$!all-json")
+}
+
+if ($programname startswith "minerScript" and $msg startswith " @cee:") then {
+  action(type="mmjsonparse")
+  action(type="omelasticsearch" server="{{ log_server }}"
+    searchIndex="{{ log_index }}" template="syslog-cee"
+    bulkmode="on")
+  stop
+} else if ($programname startswith "minerScript") then {
+  action(type="omelasticsearch" server="{{ log_server }}"
+    searchIndex="{{ log_index }}" template="JSONDefault"
+    bulkmode="on")
+  # stop # keep plain messages from the miner on the same log_index
+}
+action(type="omelasticsearch" server="{{ log_server }}" template="JSONDefault" bulkmode="on")
+# stop # uncomment to disable plain old file-based logging

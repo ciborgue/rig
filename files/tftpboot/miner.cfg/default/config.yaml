@@ -1,0 +1,54 @@
+---
+miner: 'eth' # miner selector
+miners:
+  eth: # default settings for Claymore's Dual ETH miner
+    exec: # this has to be an Array to preserve order
+      - 'stdbuf -oL'
+      - '~/eth/ethdcrminer64'
+    update: # update watchdog if miner output matches one of these
+      - !ruby/regexp /(ETH|DCR):\s+Share\s+accepted/
+    argv: # miner arguments
+      mode: 1
+      tt: 75
+      ttli: 82
+      fanmin: 60
+    pools:
+      - 'epools.txt'
+      - 'dpools.txt'
+    local:
+      ttli: !ruby/regexp /Currently -ttli reduces intensity for:/
+      schema: # how to decode JSON status
+        eth:
+          - 2
+          - 9
+          - 0
+        dcr:
+          - 4
+          - 12
+          - 2
+    status: 'tcp:localhost:3333'
+  xmr:
+    exec:
+      - 'stdbuf -oL'
+      - 'nsgpucnminer'
+    update:
+      - !ruby/regexp /Share\s+accepted\s+\(\d+\s+ms\)!/
+    argv:
+      tt: 75
+      ttli: 82
+      fanmin: 60
+    pools:
+      - 'epools.txt'
+    local:
+    status: 'tcp:localhost:3333'
+amdtweak: # 'default' gets adjusted by the model if model matches BIOS
+  default:
+    MemClockDependencyTable.Entries[2].MemClock: 207500
+    SocClockDependencyTable.Entries[7].SocClock: 115000
+  model: # this has to be an Array because order is important
+    - - !ruby/regexp /^E387 Polaris20 XTX A1 GDDR5 256Mx32 8GB/
+      - MemClockDependencyTable.Entries[2].MemClock: 205000
+        SocClockDependencyTable.Entries[7].SocClock: 115100
+watchdog: # start TCO and/or USB watchdogs; don't start if missing or false
+  tco: true # start Intel's watchdog; seems ineffective if card hangs
+  usb: true # start USB watchdog; USB will be checked for the device

@@ -1,0 +1,76 @@
+---
+- name: Add swap to fstab
+  lineinfile:
+    path: /etc/fstab
+    line: 'LABEL=SWAP none swap sw,discard,nofail 0 0'
+  when: false # comment out for an actual deployment
+
+- name: Lock up root filesystem ####################################################################
+  lineinfile:
+    path: /etc/overlayroot.conf
+    regexp: '^\s*overlayroot\s*='
+    line: 'overlayroot="tmpfs:swap=1"'
+
+- name: Change initrd to XZ ## This change has to be postponed to the last minute to save time #####
+  lineinfile:
+    path: /etc/initramfs-tools/initramfs.conf
+    regexp: '^\s*COMPRESS\s*=.*'
+    line: 'COMPRESS=xz'
+
+- name: Update initramfs
+  command: "update-initramfs -u"
+
+- name: Update grub2
+  command: "update-grub2"
+
+- name: Cleanup status directories [logs, dhcp, etc.]
+  shell: "( cd {{ item }} ; find . -type f | xargs rm -f )"
+  with_items:
+    - /var/log
+    - /var/lib/dhcp
+    - /var/lib/update-manager
+    - /var/lib/update-notifier
+
+- name: APT cleanup
+  shell: "apt -y purge --autoremove"
+  args:
+    warn: no
+
+- name: Final cleanup for Aptitude
+  shell: apt clean
+
+- name: Cleanup bash history
+  file:
+    state: absent
+    path: "{{ item[1] }}"
+  become: true
+  become_user: "{{ item[0] }}"
+  with_nested:
+    - "{{ users }}"
+    - - ~/.viminfo
+      - ~/.bash_history
+
+- name: Touch empty files required for avoiding the errors
+  copy:
+    dest: "{{ item }}"
+    force: no
+    content: ''
+  with_items:
+    - /var/log/lastlog
+
+- name: Remove hostname for "{{ ansible_hostname }}"
+  command: "hostnamectl set-hostname ''"
+  when: iscsiboot
+
+- name: Cleanup package leftovers ## Note the grubenv; it's to prevent recordfail on iSCSI disk ####
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+    - /boot/grub/grubenv
+    - /etc/apparmor
+    - /etc/apparmor.d
+    - /etc/apache2
+
+- name: shutdown-server
+  shell: 'fstrim -a; modprobe i6300esb heartbeat=180; /sbin/shutdown --poweroff +1'

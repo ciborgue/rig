@@ -1,0 +1,14 @@
+---
+- hosts: ceilometer
+  roles:
+    - sanity-check
+    - { role: release.16, when: "first_pass" } # first-pass; release-specific
+    - { role: first-pass, when: "first_pass" } # first-pass; common
+    - common # basically removing WDT for now
+    - virtual
+    - metricbeat
+    - ntp-client
+    - rsyslog
+    - system-users
+    - ceilometer-user
+    - docker-server

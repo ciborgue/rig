@@ -1,0 +1,16 @@
+--- rsyslog.conf.orig	2018-03-22 05:45:36.976584087 +0000
++++ rsyslog.conf	2018-03-22 05:47:36.485139477 +0000
+@@ -12,7 +12,7 @@
+ 
+ $ModLoad imuxsock # provides support for local system logging
+ $ModLoad imklog   # provides kernel logging support (previously done by rklogd)
+-#$ModLoad immark  # provides --MARK-- message capability
++$ModLoad immark  # provides --MARK-- message capability
+ 
+ # provides UDP syslog reception
+ #$ModLoad imudp
+@@ -56,4 +56,3 @@
+ # Include all config files in /etc/rsyslog.d/
+ #
+ $IncludeConfig /etc/rsyslog.d/*.conf
+-

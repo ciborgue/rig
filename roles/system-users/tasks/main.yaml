@@ -1,0 +1,72 @@
+---
+- name: Create user for the monitor ######### the password is 'Bahia@202o' #########################
+  user:
+    name: "{{ ansible_hostname }}"
+    comment: Server Monitor
+    password: $6$GokYmg/DRO.L0Vd$JhO02a0X1hIZZjaXD3DML717z9.gxn1uwCQCeZAZw19VYoKnj41jjX6wAro87o20sWOKCC43RK3P.E34LVtxw.
+    groups: adm,sudo
+    shell: /bin/bash
+    append: yes
+
+- name: Append user to the list ### This one is for the rest of the playbook #######################
+  set_fact:
+    users: "{{ users }} + [ '{{ ansible_hostname }}' ]"
+
+- name: OpenSSH global host keys ### Should use inventory_hostname as name can change ##############
+  unarchive:
+    src: "files/{{ inventory_hostname }}_ssh_host_keys.tar.bz2"
+    dest: /etc/ssh
+
+- name: Disable password authentication ##########################################################
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^(\s*#*\s*)*PasswordAuthentication\s(yes|no)'
+    line: 'PasswordAuthentication no'
+
+- name: Allow agent forwarding ###################################################################
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^(\s*#*\s*)*AllowAgentForwarding\s(yes|no)'
+    line: 'AllowAgentForwarding yes'
+
+- name: Let admins sudo with no password #########################################################
+  lineinfile:
+    path: /etc/sudoers
+    regexp: '^%sudo\s'
+    line: '%sudo ALL=(ALL:ALL) NOPASSWD: ALL'
+
+- name: Dot-SSH directory ##########################################################################
+  file:
+    state: directory
+    path: ~/.ssh
+    mode: 0700
+  become: true
+  become_user: "{{ item }}"
+  with_items: "{{ users }}"
+
+- name: VIM RC
+  copy:
+    dest: ~/.vimrc
+    src: files/vimrc
+    mode: 0644
+  become: true
+  become_user: "{{ item }}"
+  with_items: "{{ users }}"
+
+- name: Setup SSH config ### Per-user SSH config; substitute VLAN IP ###############################
+  template:
+    src: templates/ssh-client/config.j2
+    dest: ~/.ssh/config
+  become: true
+  become_user: "{{ item }}"
+  with_items: "{{ users }}"
+
+- name: Install authorized_keys files ##############################################################
+  lineinfile:
+    path: ~/.ssh/authorized_keys
+    create: yes
+    line: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKE41wHF6nEoLYSRE9uZ24PW1r1+M4VXJ/7lI3GZyzxR admin'
+    mode: 0644
+  become: true
+  become_user: "{{ item }}"
+  with_items: "{{ users }}"

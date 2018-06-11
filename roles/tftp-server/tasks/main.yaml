@@ -1,0 +1,79 @@
+---
+# Setup TFTP server
+# Note that tftp user and group should be created before mounting fs
+- name: Install TFTP client/server
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - tftpd-hpa
+
+- name: Register VG mapper directory
+  stat:
+    path: /dev/lnxvg
+  register: lnxvg_vg
+
+- name: Register TFTP boot LV link
+  stat:
+    path: "/dev/lnxvg/{{ tftpboot }}"
+  register: tftpboot_lv
+
+- name: Create TFTP LV
+  shell: "lvcreate --name {{ tftpboot }} -V 128M --thinpool POOL lnxvg"
+  when:
+    - lnxvg_vg.stat.exists
+    - not tftpboot_lv.stat.exists
+
+- name: Re-register TFTP boot LV link
+  stat:
+    path: "/dev/lnxvg/{{ tftpboot }}"
+  register: tftpboot_lv
+
+- name: Create TFTP filesystem [backup]
+  shell: "umount /{{ tftpboot }}; mkfs.vfat -a -n CONF /dev/lnxvg/{{ tftpboot }}"
+  when:
+    - lnxvg_vg.stat.exists
+    - tftpboot_lv.stat.exists
+
+- name: Mount TFTP storage
+  mount:
+    path: "/{{ tftpboot }}"
+    src: LABEL=CONF
+    fstype: vfat
+    opts: ro,discard,lazytime,utf8,umask=022,uid=tftp,gid=tftp
+    state: mounted
+
+- name: Remount TFTP RW to copy files
+  shell: mount -o rw,remount "/{{ tftpboot }}"
+  args:
+    warn: no
+
+- name: Copy default TFTP files to TFTP directory
+  copy:
+    src: files/tftpboot/ # note trailing slash
+    dest: "/{{ tftpboot }}"
+  when: # it won't hurt but limit copy to save some traffic on boot
+    - not iscsiboot
+
+- name: Copy site-specific TFTP files to TFTP directory
+  copy:
+    src: ~/tftpboot/
+    dest: "/{{ tftpboot }}"
+  when: # it won't hurt but limit copy to save some traffic on boot
+    - not iscsiboot
+
+- name: Remount TFTP RO done with the copy
+  shell: mount -o ro,remount "/{{ tftpboot }}"
+  args:
+    warn: no
+
+- name: Enable TFTP server # note it's always enabled even if not needed
+  systemd:
+    enabled: yes
+    name: tftpd-hpa
+
+- name: Configure TFTPD directory
+  lineinfile:
+    path: /etc/default/tftpd-hpa
+    regexp: '^TFTP_DIRECTORY\s*='
+    line: 'TFTP_DIRECTORY="/tftpboot"'

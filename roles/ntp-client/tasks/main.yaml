@@ -1,0 +1,32 @@
+# Note that NTP client gets installed only when 'glance' is present:
+# - 'nova' with network boot
+# - 'ceilometer'
+# So {{ vlan_network }}.1 is always present and there's no need to change
+---
+- name: Remove NTP packages
+  apt:
+    state: absent
+    purge: yes
+    name: "{{ item }}"
+  with_items:
+    - ntp
+    - ntpstat
+    - ntpdate
+
+- name: Set system NTP server for systemd-timesyncd
+  replace:
+    path: /etc/systemd/timesyncd.conf
+    regexp: '#*\s*NTP\s*=.*'
+    replace: 'NTP={{ vlan_network }}.1 0.pool.ntp.org 1.pool.ntp.org 2.pool.ntp.org'
+
+- name: Set system NTP fallback for systemd-timesyncd
+  replace:
+    path: /etc/systemd/timesyncd.conf
+    regexp: '#*\s*FallbackNTP\s*=.*'
+    replace: 'FallbackNTP=0.pool.ntp.org 1.pool.ntp.org 2.pool.ntp.org'
+
+- name: Enable systemd-timesyncd server
+  systemd:
+    name: systemd-timesyncd
+    enabled: no
+    state: stopped

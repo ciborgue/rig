@@ -1,0 +1,18 @@
+---
+- name: Install physical packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - ruby-serialport ### required to talk to USB WDT
+    - memtest86+
+    - lm-sensors
+    - sensord
+
+- name: Enable physical management tools ### Note: sensord is NOT present on 17.10
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: stopped
+  with_items:
+    - sensord

@@ -1,0 +1,19 @@
+---
+- name: Install virtual packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - python-twisted ### required for mining proxies
+    - thin-provisioning-tools
+
+- name: Setting up thin provisioned pool
+  script: files/make-default-storage.sh
+
+- name: Add swap partition ## made by make-default-storage
+  mount:
+    state: present
+    fstype: swap
+    src: 'LABEL=SWAP'
+    path: none
+    opts: sw,discard,nofail

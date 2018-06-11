@@ -1,0 +1,20 @@
+?SECTION ALL
+?SECTION ESTABLISHED
+?SECTION RELATED
+?SECTION INVALID
+?SECTION UNTRACKED
+?SECTION NEW
+#
+Invalid(DROP) net all tcp
+#
+# Access and identification for the company network
+SSH(ACCEPT)   net $FW
+SNMP(ACCEPT)  net $FW
+Ping(ACCEPT)	net $FW
+#
+# Redirect DNS via TorDNS @ 9053
+DNAT loc loc:{{ vlan_network }}.1:9053 udp 53
+#
+ACCEPT    loc   all   tcp,udp,icmp
+ACCEPT		$FW		all		tcp,udp,icmp
+# EOF

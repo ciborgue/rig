@@ -1,0 +1,98 @@
+### Timezone set to Coordinated Universal Time
+d-i		time/zone	select	Etc/UCT
+clock-setup	clock-setup/utc	boolean	true
+
+grub-pc		grub2/kfreebsd_cmdline_default	string	console=hvc0
+grub-installer	grub-installer/only_debian	boolean	true
+
+d-i	mirror/country		string	US
+d-i	mirror/http/mirror	select	us.archive.ubuntu.com
+d-i	mirror/http/proxy	string
+
+user-setup-udeb	user-setup/encrypt-home		boolean	false
+user-setup-udeb	passwd/user-fullname		string	Yegor Gorshkov
+user-setup-udeb	passwd/username			string	yegor
+user-setup-udeb	passwd/user-password-crypted	password	$6$AKDQ1OwcHAb6EV$B.2PGo8bMnwECgDCjZQjroffVew0Wqpx.pZ.bGJXlSJgfaN95J4/DO11/szTwuwZqhdmG3WJc7CrdeRRSK/V./
+
+### Localization
+#d-i	debian-installer/language	string	en
+#d-i	debian-installer/country	string	US
+#d-i	debian-installer/locale		select	en_US.UTF-8
+
+### Keyboard selection.
+#d-i	console-keymaps-at/keymap		select	us
+#d-i	keyboard-configuration/xkb-keymap	select	us
+
+## Partitioning
+d-i	partman-auto/method		string	lvm
+d-i	partman-auto-lvm/new_vg_name	string	lnxvg
+d-i	partman-auto-lvm/guided_size	string	max
+
+# all confirmations for the disk configuration; 'method_only' is for blank LV
+d-i	partman/choose_partition		select	finish
+d-i	partman-basicfilesystems/no_swap	boolean	false
+d-i	partman-basicmethods/method_only	boolean	false
+d-i	partman-lvm/confirm_nooverwrite		boolean	true
+d-i	partman/confirm_nooverwrite		boolean	true
+
+d-i	partman-auto/choose_recipe	select	boot-root
+d-i	partman-auto/expert_recipe	string	boot-root ::    \
+		256 300 384 ext4                                \
+			$primary{ } $bootable{ }                \
+			method{ format } format{ }              \
+			use_filesystem{ } filesystem{ ext4 }    \
+			options/discard{ discard }		\
+			options/noatime{ noatime }		\
+			label{ BOOT } labeled_mount{ }		\
+			mountpoint{ /boot }                     \
+		.                                               \
+		256 300 384 fat32                               \
+			$lvmok{ } lv_name{ tftpboot }           \
+			method{ format } format{ }              \
+			use_filesystem{ } filesystem{ fat32 }   \
+			options/discard{ discard }		\
+			options/noatime{ noatime }		\
+			label{ TFTPBOOT } labeled_mount{ }	\
+			mountpoint{ /tftpboot }                 \
+		.                                               \
+		3072 4000 4096 ext4                             \
+			$lvmok{ } lv_name{ root }               \
+			method{ format } format{ }              \
+			use_filesystem{ } filesystem{ ext4 }    \
+			options/discard{ discard }		\
+			options/noatime{ noatime }		\
+			label{ ROOT } labeled_mount{ }		\
+			mountpoint{ / }                         \
+		.                                               \
+		64 64 64 free                                   \
+			$lvmok{ } lv_name{ meta }               \
+			method{ keep }                          \
+		.						\
+		64 64 64 free                                   \
+			$lvmok{ } lv_name{ fake }               \
+			method{ keep }                          \
+		.						\
+		4096 8192 -1 free                               \
+			$lvmok{ } lv_name{ data }               \
+			method{ keep }                          \
+		.
+### Can't leave empty space on LVM; see Debian bug#820788
+# 'fake' should be exactly the size of 'meta' as equal number of extents is
+# required to convert meta+data to thin pool.
+
+### Software selection
+d-i	tasksel/first	multiselect	standard system utilities, OpenSSH server, Basic Ubuntu server
+d-i	tasksel/include	string	build-essential acpid dkms ruby ruby-deep-merge busybox \
+				sysstat etherwake nmap iptraf-ng ppp openvpn tftp-hpa \
+				vim thin-provisioning-tools
+pkgsel	pkgsel/update-policy	select	none
+
+d-i	preseed/late_command	string	lvremove -y /dev/lnxvg/fake
+# Nice try but watchdog or thin provisioning aren't present in 'installer' kernel
+#	lvconvert -y --type thin-pool --poolmetadata lnxvg/meta lnxvg/data; \
+#	modprobe i6300esb; dd if=/dev/zero of=/dev/watchdog count=1
+
+# Don't ask for confirmation and shutdown the VM
+d-i	finish-install/reboot_in_progress	note
+#d-i	debian-installer/exit/halt		boolean	true
+#d-i	debian-installer/exit/poweroff		boolean	true

@@ -1,0 +1,12 @@
+SOCKSPort 9050
+DNSPort 9053
+
+SOCKSPolicy accept 127.0.0.0/24
+SOCKSPolicy reject *
+
+ExitPolicy reject *:*
+
+AvoidDiskWrites 1
+
+Log err syslog
+SafeLogging 1

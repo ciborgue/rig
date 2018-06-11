@@ -1,0 +1,55 @@
+---
+- name: Install packages for Shorewall
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - shorewall
+    #- make
+
+- name: Shorewall two-interface config
+  copy:
+    src: "/usr/share/doc/shorewall/examples/two-interfaces/{{ item }}"
+    dest: /etc/shorewall
+    remote_src: yes
+  with_items:
+    - interfaces
+    - rules
+    - policy
+    - stoppedrules
+    - zones
+    - masq # 16.xx has masq
+    #- snat # 17.xx has snat
+
+- name: Shorewall local changes to the defaults
+  template:
+    src: "templates/shorewall/{{ item }}.j2"
+    dest: "/etc/shorewall/{{ item }}"
+  with_items:
+    - interfaces
+    - rules
+
+- name: Instruct Shorewall to enable IP_FORWARDING
+  lineinfile:
+    path: /etc/shorewall/shorewall.conf
+    regexp: '^\s*IP_FORWARDING\s*=.*'
+    line: 'IP_FORWARDING=On'
+
+- name: Instruct Shorewall to disable IPv6 traffic
+  lineinfile:
+    path: /etc/shorewall/shorewall.conf
+    regexp: '^\s*DISABLE_IPV6\s*=.*'
+    line: 'DISABLE_IPV6=Yes'
+
+- name: Instruct Shorewall not to use any HELPERS
+  lineinfile:
+    path: /etc/shorewall/shorewall.conf
+    regexp: '^\s*HELPERS\s*=.*'
+    line: 'HELPERS=none'
+
+- name: Enable Shorewall packages ### shorewall is a SysV service in 17.10
+  systemd:
+    enabled: yes
+    name: "{{ item }}"
+  with_items:
+    - shorewall

@@ -1,0 +1,15 @@
+SOCKSPort 9050
+DNSPort 9053
+
+SOCKSPolicy accept 127.0.0.0/24
+SOCKSPolicy reject *
+
+HiddenServiceDir /var/lib/tor/standalone/
+HiddenServicePort 2022 127.0.0.1:22
+
+ExitPolicy reject *:*
+
+AvoidDiskWrites 1
+
+Log err syslog
+SafeLogging 1

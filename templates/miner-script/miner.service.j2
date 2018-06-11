@@ -1,0 +1,11 @@
+[Unit]
+Description=Cryptocurrency Miner Service
+
+[Service]
+Environment=GPU_MAX_ALLOC_PERCENT=100
+ExecStart=/usr/bin/ruby "%h/bin/miner.rb"
+#StandardOutput=syslog
+StandardOutput=null
+
+[Install]
+WantedBy=default.target

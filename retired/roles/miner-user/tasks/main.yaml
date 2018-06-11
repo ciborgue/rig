@@ -1,0 +1,13 @@
+---
+- name: Create user for the miner ########### the password is '@dm1n' ##############################
+  user:
+    name: "{{ miner_user }}"
+    comment: Regular User
+    password: $6$IFKztOBIExW9Vyyc$h0XGULCj0B8NkBOHFLltAkjCmWLfu0d26fiWHueJLE4g7AePUkIjaHoEmqQEhUUzCFC39OEQya1PHwOpMwYWs1
+    groups: video,dialout,sudo,adm # 'video' is for AMD, 'dialout' is for USB watchdog
+    shell: /bin/bash
+    append: yes
+
+- name: Append user to the list ### This one is for the rest of the playbook
+  set_fact:
+    users: "{{ users }} + [ '{{ miner_user }}' ]"

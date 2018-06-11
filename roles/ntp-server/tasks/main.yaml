@@ -1,0 +1,27 @@
+# This gets installed on 'glance' (always) and on 'nova' (standalone)
+---
+- name: Install NTP packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - ntp
+    - ntpstat
+    - ntpdate
+
+- name: Instantiate ntpd config
+  template:
+    src: templates/ntp-system/ntp.conf.j2
+    dest: /etc/ntp.conf
+
+- name: Disable systemd-timesyncd server
+  systemd:
+    name: systemd-timesyncd
+    enabled: no
+    state: stopped
+
+- name: Enable NTP server
+  systemd:
+    name: ntp
+    enabled: yes
+    state: stopped

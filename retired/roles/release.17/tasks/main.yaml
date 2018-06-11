@@ -1,0 +1,20 @@
+- name: Unblacklist all watchdog modules
+  replace:
+    path: "{{ item }}"
+    regexp: '#*(blacklist\s*(iTCO_wdt|iTCO_vendor_support|i2c_i801|i2c-smbus|xen_wdt|i6300esb).*)'
+    replace: '#\1'
+  with_items:
+    - /etc/modprobe.d/blacklist.conf
+    - "/lib/modprobe.d/blacklist_linux_{{ latest_kernel_edge }}-generic.conf"
+  notify: rebuild initramfs
+
+- name: Ubuntu 17 network config
+  template:
+    src: "templates/network-config/{{ inventory_hostname }}_01-netcfg.yaml.j2"
+    dest: /etc/netplan/01-netcfg.yaml
+
+- name: GRUB2 kernel command
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX\s*='
+    line: 'GRUB_CMDLINE_LINUX="net.ifnames=0 apparmor=0 console=tty0 console=hvc0"'

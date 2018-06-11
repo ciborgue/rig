@@ -1,0 +1,18 @@
+---
+- hosts: nova
+  roles:
+    - sanity-check
+    - { role: release.16, when: "first_pass" } # first-pass; release-specific
+    - { role: first-pass, when: "first_pass" } # first-pass; common
+    - common # basically removing WDT for now
+    - { role: metricbeat, when: "iscsiboot" }
+    - { role: ntp-server, when: "not iscsiboot" }
+    - { role: ntp-client, when: "iscsiboot" }
+    - physical ## hardware management like sensord, etc.
+    - rsyslog
+    - { role: tftp-server, when: "not iscsiboot and ansible_hostname in ['glance', 'nova']" }
+    - { role: tor-system, when: "not iscsiboot and ansible_hostname in ['glance', 'nova']" }
+    - system-users
+    - drivers
+    - scripts
+    - locked-system

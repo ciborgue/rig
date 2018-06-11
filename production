@@ -1,0 +1,32 @@
+# ansible-playbook -i production nova.yaml --become --extra-vars '{"iscsiboot":false}'
+#  ... wait for VM to reboot, then rerun ...
+# ansible-playbook -i production nova.yaml --become --extra-vars '{"iscsiboot":false}'
+#  ...
+all:
+  vars:
+    ansible_user: ansible
+    ansible_become: true
+    ansible_python_interpreter: /usr/bin/python3 # initially there's no Python2
+    users:
+      - root
+      - ansible
+    log_server: 'ceilometer' # send logs to this server
+    log_index: 'rig-log' # keep mining activity to this index
+    vlan_network: '10.10.10'
+    # this directory should already be NFS-exported from the Ansible server
+    # with at least 'ro' permissions; setting this up is outside of this
+    # playbook collection scope - you have to set this up yourself
+    driver_disk_directory: '/amdgpu-pro-17.50-511655'
+    # TFTP server root; overrides local settings on 'nova' if network booted
+    # Note that this has to be on a separate VFAT partition so when you insert
+    # USB boot stick using Windows you can edit configs; this does not affect
+    # iSCSI boot much
+    tftpboot: 'tftpboot'
+    iscsiboot: false # only set to 'true' for 'nova'
+  hosts:
+    nova:
+      miner_user: 'root'
+    glance:
+      vlan_interface: 'private'
+    ceilometer:
+    metasploit.lan:

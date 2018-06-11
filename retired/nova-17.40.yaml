@@ -1,0 +1,16 @@
+---
+- hosts: nova
+  roles:
+   - release.16 ### watchdog and interfaces; should be done before 'common'
+   - common
+   - physical
+   - rsyslog
+   - system-users
+   - claymore-system
+   - tor-common
+   - tor-client
+   - ntp-client
+   - tftp-client
+   - tgt-client
+   - amd-rig-17.40
+   - locked-system

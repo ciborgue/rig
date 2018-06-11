@@ -1,0 +1,93 @@
+---
+- name: Install Tor repository key
+  apt_key:
+    keyserver: keys.gnupg.net
+    id: A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89
+
+- name: Install Tor repository, main
+  apt_repository:
+    repo: deb http://deb.torproject.org/torproject.org xenial main
+    state: present
+    filename: 'torproject'
+
+- name: Install Tor repository, experimental
+  apt_repository:
+    repo: deb http://deb.torproject.org/torproject.org tor-experimental-0.3.3.x-xenial main
+    state: present
+    filename: 'torproject'
+
+- name: Install Tor packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - tor
+
+- name: Patch Tor service components; give tor.service time to retrieve the keys
+  lineinfile:
+    backup: yes
+    path: "/lib/systemd/system/{{ item }}"
+    regexp: '^After\s*='
+    line: 'After=network.target nss-lookup.target tor.service'
+  with_items:
+    - tor@.service
+    - tor@default.service
+
+- name: Patch Tor service; retrieve the keys from TFTP
+  lineinfile:
+    backup: yes
+    path: /lib/systemd/system/tor.service
+    insertbefore: '^ExecStart\s*='
+    line: 'ExecStartPre=/bin/bash /tftpboot/tor.cfg/tor-keys.sh'
+
+- name: Tor config
+  copy:
+    dest: /etc/tor/torrc
+    content: |
+      SOCKSPort 9050
+      DNSPort 9053
+      #
+      SOCKSPolicy accept 127.0.0.0/24
+      SOCKSPolicy reject *
+      #
+      ExitPolicy reject *:*
+      #
+      AvoidDiskWrites 1
+      #
+      Log err syslog
+      SafeLogging 1
+
+- name: TorSocks config
+  copy:
+    dest: /etc/tor/torsocks.conf
+    content: |
+      TorAddress {{ keystone_server }}
+      TorPort 9050
+      #
+      OnionAddrRange 127.42.42.0/24
+      AllowOutboundLocalhost 1
+
+- name: Enable Tor
+  systemd:
+    state: stopped
+    enabled: yes
+    name: tor
+
+- name: Cleanup Tor 
+  shell: "( cd {{ item }} ; find . -type f | xargs rm -f )"
+  with_items:
+    - /var/lib/tor
+
+- name: Tor cached microdescriptors used for faster startup
+  unarchive:
+    src: files/tor-system/tor-cached-data.tar.bz2
+    dest: /var/lib/tor
+
+- name: Torsocks 2.2.0-master shared library; 2.1.0 won't work
+  copy:
+    src: "files/{{ ansible_distribution_major_version }}/libtorsocks.so.0.0.0"
+    dest: /usr/lib/x86_64-linux-gnu/torsocks/libtorsocks.so.0.0.0
+    owner: root
+    group: root
+    mode: 0644
+  when: false

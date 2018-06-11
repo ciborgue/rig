@@ -1,0 +1,91 @@
+storage iblock disk DEFAULT {
+    path /dev/lnxvg/DEFAULT
+    wwn 7ba17494-c76e-4230-8fe0-e1a62f243461
+    attribute {
+        block_size 512
+        emulate_3pc yes
+        emulate_caw yes
+        emulate_dpo yes
+        emulate_fua_read yes
+        emulate_fua_write yes
+        emulate_model_alias no
+        emulate_rest_reord no
+        emulate_tas yes
+        emulate_tpu no
+        emulate_tpws no
+        emulate_ua_intlck_ctrl no
+        emulate_write_cache no
+        enforce_pr_isids yes
+        fabric_max_sectors 8192
+        force_pr_aptpl 0
+        is_nonrot no
+        max_unmap_block_desc_count 1
+        max_unmap_lba_count 33554432
+        max_write_same_len 65535
+        optimal_sectors 65528
+        pi_prot_format 0
+        pi_prot_type 0
+        queue_depth 128
+        unmap_granularity 128
+        unmap_granularity_alignment 0
+    }
+}
+fabric iscsi {
+    discovery_auth {
+        enable no
+        mutual_password ""
+        mutual_userid ""
+        password ""
+        userid ""
+    }
+    target iqn.1999-01.the.miner:default tpgt 1 {
+        enable yes
+        attribute {
+            authentication no
+            cache_dynamic_acls yes
+            default_cmdsn_depth 64
+            default_erl 0
+            demo_mode_discovery yes
+            demo_mode_write_protect yes
+            fabric_prot_type 0
+            generate_node_acls yes
+            login_keys_workaround 1
+            login_timeout 15
+            netif_timeout 2
+            prod_mode_write_protect no
+            t10_pi 0
+            tpg_enabled_sendtargets 1
+        }
+        auth {
+            password ""
+            password_mutual ""
+            userid ""
+            userid_mutual ""
+        }
+        parameter {
+            AuthMethod "CHAP,None"
+            DataDigest "CRC32C,None"
+            DataPDUInOrder yes
+            DataSequenceInOrder yes
+            DefaultTime2Retain 20
+            DefaultTime2Wait 2
+            ErrorRecoveryLevel no
+            FirstBurstLength 65536
+            HeaderDigest "CRC32C,None"
+            IFMarkInt Reject
+            IFMarker no
+            ImmediateData yes
+            InitialR2T yes
+            MaxBurstLength 262144
+            MaxConnections 1
+            MaxOutstandingR2T 1
+            MaxRecvDataSegmentLength 8192
+            MaxXmitDataSegmentLength 262144
+            OFMarkInt Reject
+            OFMarker no
+            TargetAlias "LIO Target"
+        }
+        lun 0 backend iblock:DEFAULT
+        portal {{ vlan_network }}.1:3260
+    }
+}

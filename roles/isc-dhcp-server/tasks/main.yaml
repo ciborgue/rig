@@ -1,0 +1,28 @@
+---
+- name: Install ISC DHCPD packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - isc-dhcp-server
+    #- python3-isc-dhcp-leases # no library in 16.xx
+
+- name: Enable DHCP server
+  systemd:
+    name: isc-dhcp-server
+    enabled: yes
+
+- name: ISC dhcpd config files
+  template:
+    dest: "/etc/dhcp/{{ item }}"
+    src: "templates/isc-dhcpd-server/{{ item }}.j2"
+  with_items:
+    - isc-dhcpd-ipxe-options.conf
+    - dhcpd.conf
+
+### leave it alone; this spits a warning on startup about ignoring eth0 - but this is harmless
+#- name: ISC dhcpd interfaces ### Probably a bug in 17.10; should be INTERFACES, not ..v4??
+#  lineinfile:
+#    path: /etc/default/isc-dhcp-server
+#    regexp: '^\s*INTERFACESv4\s*='
+#    line: 'INTERFACES="{{ vlan_interface }}"'

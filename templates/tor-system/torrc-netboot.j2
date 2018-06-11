@@ -1,0 +1,19 @@
+SOCKSPort 9050
+SOCKSPort {{ vlan_network }}.1:9050
+DNSPort {{ vlan_network }}.1:9053
+
+SOCKSPolicy accept {{ vlan_network }}.0/24
+SOCKSPolicy reject *
+
+HiddenServiceDir /var/lib/tor/netboot/
+HiddenServicePort 2022 {{ vlan_network }}.1:22 # glance/ssh
+HiddenServicePort 3022 {{ vlan_network }}.2:22 # ceilometer/ssh
+HiddenServicePort 8080 {{ vlan_network }}.2:8080 # ceilometer/www
+HiddenServicePort 5601 {{ vlan_network }}.2:5601 # ceilometer/kibana
+
+ExitPolicy reject *:*
+
+AvoidDiskWrites 1
+
+Log err syslog
+SafeLogging 1

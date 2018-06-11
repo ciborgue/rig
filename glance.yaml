@@ -1,0 +1,18 @@
+---
+- hosts: glance
+  roles:
+    - sanity-check
+    - { role: release.16, when: "first_pass" } # first-pass; release-specific
+    - { role: first-pass, when: "first_pass" } # first-pass; common
+    - common # basically removing WDT for now
+    - metricbeat
+    - ntp-server
+    - virtual # this creates thin pool; should be before tftp
+    - rsyslog
+    - tftp-server
+    - tor-system
+    - system-users
+    - tgt-server
+    - shorewall-server
+    - isc-dhcp-server
+    - locked-system

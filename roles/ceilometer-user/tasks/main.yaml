@@ -1,0 +1,13 @@
+---
+- name: Create user for the Ceilometer ########### the password is '@dm1n' #########################
+  user:
+    name: "{{ ansible_hostname }}"
+    comment: Regular User
+    password: $6$IFKztOBIExW9Vyyc$h0XGULCj0B8NkBOHFLltAkjCmWLfu0d26fiWHueJLE4g7AePUkIjaHoEmqQEhUUzCFC39OEQya1PHwOpMwYWs1
+    groups: docker,dialout
+    shell: /bin/bash
+    append: yes
+
+- name: Append user to the list ### This one is for the rest of the playbook #######################
+  set_fact:
+    users: "{{ users }} + [ '{{ ansible_hostname }}' ]"

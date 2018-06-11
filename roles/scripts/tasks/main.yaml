@@ -1,0 +1,70 @@
+---
+- name: Making sure amdtweak is absent
+  file:
+    state: absent
+    path: ~/amdtweak
+  become_user: "{{ miner_user }}"
+
+- name: Checking out amdtweak
+  git:
+    repo: 'https://github.com/kobalicek/amdtweak.git'
+    dest: ~/amdtweak
+    depth: 1
+  become_user: "{{ miner_user }}"
+
+- name: Clean up amdtweak parts git, test, etc.
+  file:
+    state: absent
+    path: "~/amdtweak/{{ item }}"
+  become_user: "{{ miner_user }}"
+  with_items:
+    - .git
+    - .gitignore
+    - test
+
+- name: Create units directory ### Note that 'default.target.wants' is for a workaround
+  file:
+    state: directory
+    path: "{{ item }}"
+    mode: 0755
+  with_items:
+    - ~/bin
+    - ~/.config/systemd/user/default.target.wants
+  become_user: "{{ miner_user }}"
+
+- name: Copy unit file
+  template:
+    src: "templates/miner-script/{{ item }}.j2"
+    dest: "~/.config/systemd/user/{{ item }}"
+    mode: 0644
+  with_items:
+    - miner.service
+    - hostname.service
+  become_user: "{{ miner_user }}"
+
+- name: Copy unit script
+  copy:
+    src: "files/miner-script/{{ item }}"
+    dest: "~/bin/{{ item }}"
+    mode: 0755
+  with_items:
+    - miner.rb
+    - hostname.sh
+    - onoff-test.bash
+    - clock-test.bash
+    - stats-test.bash
+    - gpuid-test.bash
+  become_user: "{{ miner_user }}"
+
+- name: Enable miner ### This is a workaround for Ansible bug ; should be thru systemctl module
+  file:
+    state: link
+    path: "~/.config/systemd/user/default.target.wants/{{ item }}"
+    src: "~/.config/systemd/user/{{ item }}"
+  with_items:
+    - miner.service
+    - hostname.service
+  become_user: "{{ miner_user }}"
+
+- name: Enable systemd to read the user units
+  command: loginctl enable-linger "{{ miner_user }}"

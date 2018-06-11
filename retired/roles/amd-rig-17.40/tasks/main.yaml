@@ -1,0 +1,63 @@
+---
+- name: Remove packages NOT required for AMD
+  apt:
+    state: absent
+    name: "{{ item }}"
+    purge: yes
+  with_items:
+    - lvm2
+    - ureadahead
+
+- name: Install packages required for AMD
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - libcurl3 # required by Claymore's Miner
+
+#- name: Disable packages NOT required for AMD
+#  systemd:
+#    enabled: no
+#    name: "{{ item }}"
+#  with_items:
+
+- name: Register the IP of the Ansible server ### Fucken perverted way ###########################
+  shell: ss | sed -e '/^tcp/!d;/:ssh/!d;s/^.*:ssh//;s/:.*//;s/[[:space:]]//g' | tail -1
+  register: driver_disk_server
+
+- name: Discover distribution disk
+  shell: iscsiadm -m discovery -t st -p "{{ driver_disk_server.stdout }}"
+
+- name: Login to the iSCSI
+  shell: iscsiadm -m node -l
+
+# Actually, I think I can use Ansible's 'mount' module with 'mounted: yes' and then use it
+# again with 'mounted: no'; this has a drawback or two:
+# 1. It'll modify /etc/fstab twice for no reason
+# 2. It requires to specify filesystem type (squashfs) that I might change later
+# NOTE: I'm leaving it this un-Ansible way for now
+- name: Mount driver disk ### Ignore Ansible warnings; can't use 'mount' module - RTFM #############
+  shell: "mount -o ro /dev/sdc /mnt"
+  args:
+    warn: no
+
+- name: Install drivers ############################################################################
+  shell: ( cd /mnt/amdgpu-pro-17.40-483984 ; ./amdgpu-pro-install --compute -y )
+
+- name: Unmount driver disk ########################################################################
+  shell: "umount /mnt"
+  args:
+    warn: no
+
+- name: Logout from the iSCSI and clean session data
+  shell: "iscsiadm -m node -u ; iscsiadm -m node -o delete"
+
+- name: Delete initrd backup ### cleanup; I can't find a better way to clean session_data ##########
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+    - "/boot/initrd.img-{{ latest_kernel_LTS }}-generic.old-dkms"
+    - /etc/apt/sources.list.d/amdgpu-pro.list
+    - /var/opt/amdgpu-pro-local
+    - "/etc/iscsi/send_targets/{{ driver_disk_server.stdout }},3260"

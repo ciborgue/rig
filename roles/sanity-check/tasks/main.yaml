@@ -1,0 +1,23 @@
+---
+- name: Sanity check for the boot type
+  fail:
+    msg: 'Can only set iscsiboot to true for nova host.'
+  when:
+    - inventory_hostname not in ['nova']
+    - iscsiboot
+
+- name: Check if host was rebooted already
+  set_fact:
+    first_pass: "'eth0' not in ansible_interfaces"
+
+- name: Decide the configuration server [iscsiboot]
+  set_fact:
+    keystone_server: "{{ vlan_network }}.1"
+  when:
+    - iscsiboot or inventory_hostname not in ['nova']
+
+- name: Decide the configuration server [localhost]
+  set_fact:
+    keystone_server: "127.0.0.1"
+  when:
+    - not (iscsiboot or inventory_hostname not in ['nova'])

@@ -1,0 +1,12 @@
+[Unit]
+Description=Set hostname from IP
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash %h/bin/hostname.sh
+StandardOutput=syslog
+
+[Install]
+WantedBy=multi-user.target

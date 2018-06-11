@@ -1,0 +1,34 @@
+# iPXE: you can make one here https://rom-o-matic.eu
+#
+include "/etc/dhcp/isc-dhcpd-ipxe-options.conf";
+
+authoritative;
+
+allow booting;
+allow bootp;
+
+default-lease-time 15552000; # 180d
+max-lease-time 31104000; # 360d
+
+subnet {{ vlan_network }}.0 netmask 255.255.255.0 {
+	option	subnet-mask	255.255.255.0;
+  option  routers {{ vlan_network }}.1;
+  option  domain-name-servers {{ vlan_network }}.1;
+  option  ntp-servers {{ vlan_network }}.1;
+  option  log-servers {{ vlan_network }}.2;
+	option	interface-mtu	1470; # paranoid; on the right network should be 1500
+
+  if exists user-class and option user-class = "iPXE" {
+    option  root-path "iscsi:{{ vlan_network }}.1:::0:iqn.1999-01.the.miner:default";
+  } else {
+    filename  "undionly.kpxe";
+  }
+
+  host ceilometer {
+    hardware ethernet 00:1c:42:b0:81:b4;
+    option host-name "ceilometer";
+    fixed-address {{ vlan_network }}.2;
+  }
+
+  range {{ vlan_network }}.4 {{ vlan_network }}.254;
+}

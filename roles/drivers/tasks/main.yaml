@@ -1,0 +1,53 @@
+---
+- name: Remove packages NOT required for AMD
+  apt:
+    state: absent
+    name: "{{ item }}"
+    purge: yes
+  with_items:
+    - lvm2
+    - ureadahead
+
+- name: Install packages required for AMD
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - libcurl3 # required by Claymore's Miner
+    - nodejs-legacy # required by amdtweak
+
+# Actually, I think I can use Ansible's 'mount' module with 'mounted: yes' and then use it
+# again with 'mounted: no'; this has a drawback or two:
+# 1. It'll modify /etc/fstab twice for no reason
+# 2. It requires to specify filesystem type that I might change later
+# NOTE: I'm leaving it this un-Ansible way for now
+- name: Mount driver disk ### Ignore Ansible warnings; can't use 'mount' module - RTFM #############
+  shell: "mount -t 9p -o ro video-drivers /mnt"
+  args:
+    warn: no
+
+- name: Install drivers for NVidia #################################################################
+  shell: "( /mnt/NVIDIA-Linux-x86_64-390.12.run -k $(uname -r) --dkms --disable-nouveau --silent )"
+  ignore_errors: yes
+  when: false # don't include NVidia drivers with this build
+
+- name: Install drivers for AMD ####################################################################
+  shell: ( cd /mnt/amdgpu-pro-17.50-511655 ; ./amdgpu-pro-install --pro --opencl=legacy --headless -y )
+
+- name: Unmount driver disk ########################################################################
+  shell: "umount /mnt"
+  args:
+    warn: no
+
+- name: Get DKMS initrd image name
+  shell: find /boot -name initrd\*.old-dkms -type f
+  register: old_initrd_files
+
+- name: Delete initrd backup ### cleanup; I can't find a better way to clean session_data ##########
+  file:
+    state: absent
+    path: "{{ item }}"
+  with_items:
+    - "{{ old_initrd_files.stdout_lines }}"
+    - /etc/apt/sources.list.d/amdgpu-pro.list
+    - /var/opt/amdgpu-pro-local

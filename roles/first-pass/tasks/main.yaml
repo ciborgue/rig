@@ -1,0 +1,147 @@
+---
+- name: GRUB2 kernel command [netboot]
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX\s*='
+    line: 'GRUB_CMDLINE_LINUX="fsck.mode=skip net.ifnames=0 apparmor=0 console=tty0 ip=dhcp iscsi_auto"'
+  when:
+    - iscsiboot
+
+- name: GRUB2 kernel command [standalone]
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX\s*='
+    line: 'GRUB_CMDLINE_LINUX="fsck.mode=skip net.ifnames=0 apparmor=0 console=tty0"'
+  when:
+    - not iscsiboot
+
+- name: Change GRUB2 to text mode
+  lineinfile:
+    path: /etc/default/grub
+    regexp: 'GRUB_TERMINAL'
+    line: 'GRUB_TERMINAL=console'
+
+- name: Increase GRUB2 timeout
+  lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_TIMEOUT'
+    line: 'GRUB_TIMEOUT=5'
+
+- name: Disable undesired kernel modules
+  copy:
+    content: |
+      # TODO: find the right candidates; it might panic the kernel though
+      blacklist btrfs
+      blacklist psmouse
+      blacklist parport
+      blacklist parport_pc
+      blacklist floppy
+      blacklist joydev
+    dest: /etc/modprobe.d/blacklist-miner.conf
+    mode: 644
+
+- name: Add udev rule to make watchdog devices available to dialout group
+  copy:
+    dest: /etc/udev/rules.d/00-watchdog.rules
+    content: |
+      KERNEL=="watchdog|watchdog[0-9]*", GROUP="dialout"
+    mode: 0644
+
+- name: Set watchdog timeout
+  copy:
+    content: |
+      # KVM+QEMU: make sure to enable KVM WDT with <watchdog model='i6300esb'/>
+      # Xen: enable it somehow; I think it's the default
+      # iTCO-wdt is the physical one
+      options iTCO-wdt heartbeat=180 nowayout
+      options i6300esb heartbeat=180 nowayout
+      options xen-wdt timeout=180 nowayout
+      softdep xen_kbdfront post: xen-wdt
+    dest: /etc/modprobe.d/watchdog.conf
+    mode: 0644
+
+- name: Setting /etc/hosts file ## /etc/hosts is way too long to keep it here
+  template:
+    src: "templates/common/hosts.j2"
+    dest: /etc/hosts
+
+- name: Setting hostname to "{{ inventory_hostname }}"
+  command: "hostnamectl set-hostname {{ inventory_hostname }}"
+
+- name: Remove common packages #####################################################################
+  apt:
+    state: absent
+    name: "{{ item }}"
+    purge: yes
+  with_items:
+    - mdadm
+    - btrfs-tools
+    - squashfs-tools
+    - apparmor
+    - apport
+    - apport-symptoms
+    - python3-apport
+    - accountsservice
+    - unattended-upgrades
+    - lxd-client
+    - lxc-client
+    - lxc-common
+    - lxcfs
+    - snapd
+    - update-notifier-common
+    - update-manager-core
+
+- name: Install common packages ### TODO: move to preseed file #####################################
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - dkms
+    - build-essential
+    - ruby
+    - ruby-deep-merge
+    - busybox
+    - sysstat
+    - etherwake
+    - nmap
+    - iptraf-ng
+    - ppp
+    - openvpn
+    - tftp-hpa # TFTP client should be present on every role
+
+- name: Disable common packages
+  systemd:
+    enabled: no
+    name: "{{ item }}"
+  with_items:
+    - open-iscsi
+    - iscsid
+
+- name: Enable SADC
+  lineinfile:
+    path: /etc/default/sysstat
+    regexp: '^ENABLED'
+    line: 'ENABLED="true"'
+
+- name: Ignore laptop lid close ### For laptop testing; does not hurt production
+  replace:
+    path: /etc/systemd/logind.conf
+    regexp: '^\s*#*\s*HandleLidSwitch\s*=.*'
+    replace: 'HandleLidSwitch=ignore'
+
+- name: update-server
+  apt:
+    upgrade: dist
+    update_cache: yes
+
+- name: Update grub2 for interface rename
+  command: "update-grub2"
+
+- name: Changing default target
+  shell: systemctl set-default multi-user.target
+
+- name: shutdown-server
+  shell: 'fstrim -a; modprobe i6300esb heartbeat=180; /sbin/shutdown --poweroff +1'
+
+- name: Stop the first path, please restart the VM after reboot is complete
+  meta: end_play

@@ -1,0 +1,30 @@
+---
+- name: Add Aptitude repository for the latest rSyslog
+  apt_repository:
+    repo: 'ppa:adiscon/v8-stable'
+
+- name: Install rsyslog packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - rsyslog
+    - rsyslog-elasticsearch
+    - rsyslog-mmjsonparse
+
+- name: Enable MARK
+  patch:
+    src: files/rsyslog/rsyslog.conf.diff
+    dest: /etc/rsyslog.conf
+
+- name: Let community rsyslog use log directory
+  patch:
+    src: files/rsyslog/var.conf.patch
+    dest: /usr/lib/tmpfiles.d/var.conf
+
+- name: Set up rsyslog forwarder
+  template:
+    dest: /etc/rsyslog.d/40-elasticsearch.conf
+    src: "templates/rsyslog/40-elasticsearch.conf.j2"
+  when:
+    - iscsiboot or ansible_hostname not in ['nova']

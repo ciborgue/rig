@@ -1,0 +1,69 @@
+# Tasks specific for Ubuntu 14 LTS. Namely unblacklisting watchdog modules and
+# setting up network interfaces with /etc/network/interfaces (not netplan)
+---
+- name: Register modprobe.d files for unblacklist
+  shell: find /lib/modprobe.d /etc/modprobe.d -name blacklist\*.conf -type f
+  register: modprobe_files
+
+- name: Unblacklist all watchdog modules
+  replace:
+    path: "{{ item }}"
+    regexp: '#*(blacklist\s*(iTCO_wdt|iTCO_vendor_support|i2c_i801|i2c-smbus|xen_wdt|i6300esb).*)'
+    replace: '#\1'
+  with_items:
+    - "{{ modprobe_files.stdout_lines }}"
+
+- name: interfaces file [iscsiboot]
+  copy:
+    content: |
+      source /etc/network/interfaces.d/*
+
+      auto lo
+      iface lo inet loopback
+
+      auto eth0
+      iface eth0 inet manual
+    dest: /etc/network/interfaces
+  when:
+    - iscsiboot
+
+- name: interfaces file [dhcp boot]
+  copy:
+    content: |
+      source /etc/network/interfaces.d/*
+
+      auto lo
+      iface lo inet loopback
+
+      auto eth0
+      iface eth0 inet dhcp
+    dest: /etc/network/interfaces
+  when:
+    - not iscsiboot
+    - inventory_hostname != 'glance'
+
+- name: interfaces file [dhcp server]
+  copy:
+    content: |
+      source /etc/network/interfaces.d/*
+
+      auto lo
+      iface lo inet loopback
+
+      auto eth0
+      iface eth0 inet dhcp
+
+      auto eth0.823
+      iface eth0.823 inet static
+          address {{ vlan_network }}.1
+          netmask 255.255.255.0
+          vlan-raw-device eth0
+      # TEST ENVIRONMENT
+      #auto eth1
+      #iface eth1 inet static
+      #    address {{ vlan_network }}.1
+      #    netmask 255.255.255.0
+    dest: /etc/network/interfaces
+  when:
+    - not iscsiboot
+    - inventory_hostname == 'glance'

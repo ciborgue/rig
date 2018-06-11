@@ -1,0 +1,18 @@
+---
+- name: Create default storage LV
+  shell: "[ -L /dev/lnxvg/DEFAULT ] || lvcreate --name DEFAULT -V 4G --thinpool POOL lnxvg"
+
+- name: Install target packages
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - watchdog
+    - targetcli # use -fb for 17.xx
+    #- targetcli-fb # no *-fb for 16.xx
+
+- name: TGT config
+  template:
+    src: templates/tgt-server/scsi_target.lio.j2
+    dest: /etc/target/scsi_target.lio
+    mode: 0600

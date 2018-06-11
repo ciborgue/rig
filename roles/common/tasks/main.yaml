@@ -1,0 +1,3 @@
+---
+- name: Remove watchdog module temporarily ### Or else installation will fail
+  shell: "rmmod i6300esb; echo ok"

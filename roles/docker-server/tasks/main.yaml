@@ -1,0 +1,96 @@
+---
+- name: Remove an old Docker as in Docker docs
+  apt:
+    name: "{{ item }}"
+    state: absent
+    purge: yes
+  with_items:
+    - docker
+    - docker-engine
+    - docker.io
+    - dovecot-core
+
+- name: Install packages for Docker as in Docker docs
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - software-properties-common
+
+- name: VM max map setting
+  copy:
+    dest: /etc/sysctl.d/20-vm-max_map_count.conf
+    content: |
+      vm.max_map_count = 262144
+    mode: 0644
+
+- name: Check Docker LV
+  stat:
+    path: /dev/lnxvg/DOCKER
+  register: docker_lv
+
+- name: Create default storage LV ### Note it's overprovisioned like ~2:1
+  command: lvcreate --name DOCKER -V 32G --thinpool POOL lnxvg
+  when: docker_lv.stat.islnk is not defined
+
+- name: Make Docker storage filesystem
+  filesystem:
+    fstype: ext4
+    dev: /dev/lnxvg/DOCKER
+    opts: -m 5 -i 98304 -L DOCKER
+  when: docker_lv.stat.islnk is not defined
+
+- name: Check Docker mount point
+  stat:
+    path: /var/lib/docker
+  register: docker_mount_point
+
+- name: Make Docker mount point
+  file:
+    state: directory
+    path: /var/lib/docker
+  when: docker_mount_point.stat.isdir is not defined
+
+- name: Mount Docker LV
+  mount:
+    path: /var/lib/docker
+    src: /dev/lnxvg/DOCKER
+    fstype: ext4
+    opts: nosuid,nodev,lazytime,discard
+    state: mounted
+  when: docker_mount_point.stat.isdir is not defined
+
+- name: Install Docker apt-key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Install Docker repo
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu "{{ ansible_distribution_release }}" edge
+    state: present
+
+- name: Install Docker plus Compose
+  apt:
+    name: "{{ item }}"
+    install_recommends: yes
+  with_items:
+    - docker-ce
+    - docker-compose
+
+- name: Replace Compose with the latest
+  shell: "curl -L https://github.com/docker/compose/releases/download/1.18.0/docker-compose-`uname -s`-`uname -m` -o /usr/bin/docker-compose"
+
+- name: Add user to Docker clients
+  user:
+    name: "{{ ansible_hostname }}"
+    group: docker
+    append: yes
+
+- name: Docker IPv6 option; required by ELK container
+  template:
+    src: templates/docker-server/daemon.json.j2
+    dest: /etc/docker/daemon.json

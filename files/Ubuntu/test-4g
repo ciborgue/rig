@@ -1,0 +1,13 @@
+#!/bin/bash
+
+virt-install --connect qemu+ssh://$1/system --name $2 \
+  --memory 4096 --vcpus 2 --cpu kvm64,+vmx --features eoi=on \
+  --controller scsi,model=virtio-scsi \
+  --disk pool=images,size=$3,discard=unmap,cache=unsafe,bus=scsi \
+  --graphics none --rng /dev/random --watchdog default \
+  --network network=openstack,model=virtio,mac=52:54:00:16:84:4a \
+  --os-variant ubuntu16.04 \
+  --console pty,target_type=virtio \
+  --events on_reboot=destroy \
+  --location 'http://archive.ubuntu.com/ubuntu/dists/xenial/main/installer-amd64' \
+  --extra-args "serial console=hvc0 netcfg/dhcp_timeout=60 locale=en_US.UTF-8 keymap=us hostname=$2 url=tftp://172.20.0.1/4G.seed"

@@ -1,0 +1,28 @@
+[tftpboot]
+├── miner.bin             - ######### miner binaries
+│   └── default
+│       ├── eth.tar.xz    - miner 'eth'
+│       └── xmr.tar.xz
+├── miner.cfg             - ######### script configurations
+│   ├── default           - default config; gets loaded first
+│   │   ├── config.yaml   - script config
+│   │   ├── eth           - dpools.txt/epools.txt for miner 'eth' should be placed here
+│   │   │   └── README
+│   │   └── xmr
+│   │       └── README
+│   │     ...
+│   └── 525400058e5a      - config for MAC '52:54:00:05:8e:5a'; gets loaded on this MAC only
+│       └── config.yaml   - script config for MAC; gets *merged* to the default
+├── tor.cfg               - ######### Tor configuration
+│   ├── default           - torrc used by default
+│   │   └── torrc
+│   ├── glance            - used on the node 'glance'
+│   │   ├── hidden
+│   │   │   └── private_key
+│   │   └── torrc
+│   └── nova              - used on the nodes 'nova-xxx'
+│       ├── hidden
+│       │   └── private_key
+│       └── torrc
+├── README                - this file
+└── undionly.kpxe         - iPXL loader used for iSCSI boot
